@@ -68,6 +68,7 @@ $nome_usuario = isset($_SESSION['nome_usuario']) ? $_SESSION['nome_usuario'] : '
         // Exibe os dados da viagem em cada card
         if ($result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
+                $disabled = $row['bilhetes_disponiveis'] > 0 ? '' : 'disabled';
                 echo '<div class="card">';
                 echo '<h2>Viagem ID: ' . $row['id_viagem'] . '</h2>';
                 echo '<p>Destino: ' . $row['destino'] . '</p>';
@@ -79,8 +80,8 @@ $nome_usuario = isset($_SESSION['nome_usuario']) ? $_SESSION['nome_usuario'] : '
                     // Formulário para adicionar ao carrinho
                     echo '<form method="post" action="adicionar_carrinho.php">';
                     echo '<input type="hidden" name="id_viagem" value="' . $row['id_viagem'] . '">';
-                    echo '<input type="number" name="quantidade" min="1" max="' . $row['bilhetes_disponiveis'] . '" value="1" class="form-control mb-2">';
-                    echo '<input type="submit" name="adicionar" class="btn btn-primary" value="Adicionar ao Carrinho">';
+                    echo '<input type="number" name="quantidade" min="1" max="' . $row['bilhetes_disponiveis'] . '" value="1" class="form-control mb-2" ' . $disabled . '>';
+                    echo '<input type="submit" name="adicionar" class="btn btn-primary" value="Adicionar ao Carrinho" ' . $disabled . '>';
                     echo '</form>';
                 } else {
                     echo '<p><a href="login.php" class="btn btn-primary">Faça login para reservar</a></p>';
