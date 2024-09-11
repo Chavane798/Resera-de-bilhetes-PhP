@@ -16,8 +16,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST['email'];
     $senha = $_POST['senha'];
 
-    $sql = "SELECT * FROM Usuarios WHERE email = '$email'";
-    $result = $conn->query($sql);
+    // Prepara e executa a consulta
+    $stmt = $conn->prepare("SELECT id_usuario, nome, senha FROM Usuarios WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
     if ($result->num_rows > 0) {
         $user = $result->fetch_assoc();
@@ -25,13 +28,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             session_start();
             $_SESSION['id_usuario'] = $user['id_usuario'];
             $_SESSION['nome'] = $user['nome'];
-            header("Location: index.php"); 
+            header("Location: index.php");
+            exit();
         } else {
             echo "Senha incorreta.";
         }
     } else {
         echo "Usuário não encontrado.";
     }
+
+    $stmt->close();
 }
 
 $conn->close();
@@ -55,7 +61,10 @@ $conn->close();
                 <label for="senha" class="form-label">Senha</label>
                 <input type="password" class="form-control" name="senha" required>
             </div>
-            <button type="submit" class="btn btn-primary">Entrar</button>
+            <div class="d-flex justify-content-center mt-3">
+                <p><button type="submit" class="btn btn-primary me-2">Entrar</button>
+                Não tem uma conta? <a href="cadastro.php" class="btn btn-secondary">Cadastre-se</a></P>
+            </div>
         </form>
     </div>
 </body>
