@@ -1,4 +1,6 @@
 <?php
+session_start(); // Inicia a sessão
+
 // Conexão com o banco de dados
 $servername = "localhost";
 $username = "root";
@@ -12,12 +14,14 @@ if ($conn->connect_error) {
 }
 
 // Processamento do login
+$message = ""; // Mensagem de feedback
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST['email'];
     $senha = $_POST['senha'];
 
     // Prepara e executa a consulta
-    $stmt = $conn->prepare("SELECT id_usuario, nome, senha FROM Usuarios WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id_usuario, nome, senha, is_gestor FROM Usuarios WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -25,16 +29,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($result->num_rows > 0) {
         $user = $result->fetch_assoc();
         if (password_verify($senha, $user['senha'])) {
-            session_start();
             $_SESSION['id_usuario'] = $user['id_usuario'];
             $_SESSION['nome'] = $user['nome'];
-            header("Location: index.php");
+            $_SESSION['is_gestor'] = $user['is_gestor']; // Armazena se o usuário é gestor
+
+            // Direciona para a página apropriada
+            if ($email === "gervasiochavane798@gmail.com") {
+                header("Location: lista_reservas.php"); // Redireciona diretamente para o painel do gestor
+            } elseif ($user['is_gestor']) {
+                header("Location: lista_reservas.php"); // Redireciona para o painel do gestor
+            } else {
+                header("Location: index.php"); // Redireciona para a página principal
+            }
             exit();
         } else {
-            echo "Senha incorreta.";
+            $message = "Senha incorreta.";
         }
     } else {
-        echo "Usuário não encontrado.";
+        $message = "Usuário não encontrado.";
     }
 
     $stmt->close();
@@ -42,6 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 $conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -61,9 +74,12 @@ $conn->close();
                 <label for="senha" class="form-label">Senha</label>
                 <input type="password" class="form-control" name="senha" required>
             </div>
+            <?php if ($message): ?>
+                <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
             <div class="d-flex justify-content-center mt-3">
-                <p><button type="submit" class="btn btn-primary me-2">Entrar</button>
-                Não tem uma conta? <a href="cadastro.php" class="btn btn-secondary">Cadastre-se</a></P>
+                <button type="submit" class="btn btn-primary me-2">Entrar</button>
+                Não tem uma conta? <a href="cadastro.php" class="btn btn-secondary">Cadastre-se</a>
             </div>
         </form>
     </div>

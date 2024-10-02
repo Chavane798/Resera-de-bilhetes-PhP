@@ -13,27 +13,56 @@ if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
+// Inicializa variáveis de mensagem
+$mensagem = '';
+$erro = false;
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $nome = $_POST["nome"];
-    $email = $_POST["email"];
-    $senha = password_hash($_POST["senha"], PASSWORD_BCRYPT); // Criptografa a senha
-
-    // Prepara e executa a inserção dos dados
-    $stmt = $conn->prepare("INSERT INTO Usuarios (nome, email, senha) VALUES (?, ?, ?)");
-    $stmt->bind_param("sss", $nome, $email, $senha);
-
-    if ($stmt->execute()) {
-        echo "Usuário registrado com sucesso!";
-        header("Location: login.php"); // Redireciona para a página de login após o cadastro
-        exit();
+    $nome = trim($_POST["nome"]);
+    $email = trim($_POST["email"]);
+    $senha = $_POST["senha"];
+    
+    // Validação básica dos campos
+    if (empty($nome) || empty($email) || empty($senha)) {
+        $mensagem = "Todos os campos são obrigatórios.";
+        $erro = true;
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $mensagem = "E-mail inválido.";
+        $erro = true;
     } else {
-        echo "Erro ao registrar o usuário: " . $stmt->error;
-    }
+        // Verifica se o e-mail já está cadastrado
+        $stmt = $conn->prepare("SELECT * FROM Usuarios WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    $stmt->close();
+        if ($result->num_rows > 0) {
+            $mensagem = "E-mail já cadastrado. Tente outro.";
+            $erro = true;
+        } else {
+            // Criptografa a senha
+            $senha_criptografada = password_hash($senha, PASSWORD_BCRYPT); 
+
+            // Prepara e executa a inserção dos dados
+            $stmt = $conn->prepare("INSERT INTO Usuarios (nome, email, senha) VALUES (?, ?, ?)");
+            $stmt->bind_param("sss", $nome, $email, $senha_criptografada);
+
+            if ($stmt->execute()) {
+                $mensagem = "Usuário registrado com sucesso!";
+                header("Location: login.php"); // Redireciona para a página de login após o cadastro
+                exit();
+            } else {
+                $mensagem = "Erro ao registrar o usuário: " . $stmt->error;
+                $erro = true;
+            }
+
+            $stmt->close();
+        }
+    }
 }
 $conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -45,6 +74,13 @@ $conn->close();
 <body>
     <div class="container mt-5">
         <h2 class="text-center">Cadastro</h2>
+        
+        <?php if ($mensagem): ?>
+            <div class="alert alert-<?php echo $erro ? 'danger' : 'success'; ?>" role="alert">
+                <?php echo $mensagem; ?>
+            </div>
+        <?php endif; ?>
+        
         <form method="post" action="cadastro.php">
             <fieldset>
                 <div class="form-group">

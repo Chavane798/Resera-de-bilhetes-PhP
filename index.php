@@ -9,6 +9,38 @@ if (!isset($_SESSION['id_usuario'])) {
 
 // Inicializa a variável nome_usuario se estiver definida na sessão
 $nome_usuario = isset($_SESSION['nome_usuario']) ? $_SESSION['nome_usuario'] : '';
+
+// Função para conectar ao banco de dados
+function conectarDB() {
+    $servername = "localhost";
+    $username = "root";
+    $password = "";
+    $dbname = "reserva_bilhetes";
+
+    $conn = new mysqli($servername, $username, $password, $dbname);
+    if ($conn->connect_error) {
+        die("Conexão falhou: " . $conn->connect_error);
+    }
+    return $conn;
+}
+
+// Função para buscar viagens
+function buscarViagens($conn, $destino) {
+    $stmt = $conn->prepare("SELECT * FROM Viagens WHERE destino LIKE ?");
+    $searchParam = "%$destino%";
+    $stmt->bind_param("s", $searchParam);
+    $stmt->execute();
+    return $stmt->get_result();
+}
+
+// Conexão com o banco de dados
+$conn = conectarDB();
+
+// Obtém o destino da pesquisa
+$destino = isset($_GET['destino']) ? htmlspecialchars($_GET['destino']) : '';
+
+// Consulta os dados da viagem no banco de dados
+$result = buscarViagens($conn, $destino);
 ?>
 
 <!DOCTYPE html>
@@ -27,7 +59,7 @@ $nome_usuario = isset($_SESSION['nome_usuario']) ? $_SESSION['nome_usuario'] : '
         <div class="container">
             <h1 class="text-center">Sistema de Reservas de Viagens</h1>
             <form method="GET" action="index.php" class="d-flex justify-content-center mt-3">
-                <input type="text" name="destino" class="form-control me-2" placeholder="Pesquisar Destino" value="<?php echo isset($_GET['destino']) ? htmlspecialchars($_GET['destino']) : ''; ?>">
+                <input type="text" name="destino" class="form-control me-2" placeholder="Pesquisar Destino" value="<?php echo $destino; ?>">
                 <button type="submit" class="btn btn-light">Pesquisar</button>
             </form>
             <div class="d-flex justify-content-center mt-3">
@@ -46,41 +78,22 @@ $nome_usuario = isset($_SESSION['nome_usuario']) ? $_SESSION['nome_usuario'] : '
     <!-- Conteúdo principal -->
     <div class="grid-container mt-4">
         <?php
-        // Conexão com o banco de dados
-        $servername = "localhost";
-        $username = "root";
-        $password = "";
-        $dbname = "reserva_bilhetes";
-
-        // Cria a conexão
-        $conn = new mysqli($servername, $username, $password, $dbname);
-
-        // Verifica a conexão
-        if ($conn->connect_error) {
-            die("Conexão falhou: " . $conn->connect_error);
-        }
-
-        // Consulta os dados da viagem no banco de dados com filtro de pesquisa
-        $destino = isset($_GET['destino']) ? $_GET['destino'] : '';
-        $sql = "SELECT * FROM Viagens WHERE destino LIKE '%$destino%'";
-        $result = $conn->query($sql);
-
         // Exibe os dados da viagem em cada card
         if ($result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
                 $disabled = $row['bilhetes_disponiveis'] > 0 ? '' : 'disabled';
                 echo '<div class="card">';
-                echo '<h2>Viagem ID: ' . $row['id_viagem'] . '</h2>';
-                echo '<p>Destino: ' . $row['destino'] . '</p>';
-                echo '<p>Data e Hora: ' . $row['data_hora'] . '</p>';
-                echo '<p>Preço: R$ ' . number_format($row['preco'], 2, ',', '.') . '</p>';
-                echo '<p>Bilhetes Disponíveis: ' . $row['bilhetes_disponiveis'] . '</p>';
+                echo '<h2>Viagem ID: ' . htmlspecialchars($row['id_viagem']) . '</h2>';
+                echo '<p>Destino: ' . htmlspecialchars($row['destino']) . '</p>';
+                echo '<p>Data e Hora: ' . htmlspecialchars($row['data_hora']) . '</p>';
+                echo '<p>Preço: Mt ' . number_format($row['preco'], 2, ',', '.') . '</p>';
+                echo '<p>Bilhetes Disponíveis: ' . htmlspecialchars($row['bilhetes_disponiveis']) . '</p>';
 
                 if (isset($_SESSION['id_usuario'])) {
                     // Formulário para adicionar ao carrinho
                     echo '<form method="post" action="adicionar_carrinho.php">';
-                    echo '<input type="hidden" name="id_viagem" value="' . $row['id_viagem'] . '">';
-                    echo '<input type="number" name="quantidade" min="1" max="' . $row['bilhetes_disponiveis'] . '" value="1" class="form-control mb-2" ' . $disabled . '>';
+                    echo '<input type="hidden" name="id_viagem" value="' . htmlspecialchars($row['id_viagem']) . '">';
+                    echo '<input type="number" name="quantidade" min="1" max="' . htmlspecialchars($row['bilhetes_disponiveis']) . '" value="1" class="form-control mb-2" ' . $disabled . '>';
                     echo '<input type="submit" name="adicionar" class="btn btn-primary" value="Adicionar ao Carrinho" ' . $disabled . '>';
                     echo '</form>';
                 } else {
@@ -90,7 +103,7 @@ $nome_usuario = isset($_SESSION['nome_usuario']) ? $_SESSION['nome_usuario'] : '
                 echo '</div>';
             }
         } else {
-            echo "Nenhum resultado encontrado.";
+            echo "<p>Nenhum resultado encontrado.</p>";
         }
 
         $conn->close();

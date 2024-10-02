@@ -14,17 +14,23 @@ $password = "";
 $dbname = "reserva_bilhetes";
 $conn = new mysqli($servername, $username, $password, $dbname);
 
+// Verifica a conexão
 if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
 $id_usuario = $_SESSION['id_usuario'];
-$sql = "SELECT c.id_viagem, v.destino, v.data_hora, v.preco, c.quantidade
-        FROM Carrinho c
-        JOIN Viagens v ON c.id_viagem = v.id_viagem
-        WHERE c.id_usuario = $id_usuario";
-$result = $conn->query($sql);
+
+// Prepara a consulta para evitar injeção de SQL
+$stmt = $conn->prepare("SELECT c.id_viagem, v.destino, v.data_hora, v.preco, c.quantidade
+                         FROM Carrinho c
+                         JOIN Viagens v ON c.id_viagem = v.id_viagem
+                         WHERE c.id_usuario = ?");
+$stmt->bind_param("i", $id_usuario);
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -43,6 +49,7 @@ $result = $conn->query($sql);
                     <th>Preço</th>
                     <th>Quantidade</th>
                     <th>Total</th>
+                    <th>Ação</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,20 +60,22 @@ $result = $conn->query($sql);
                         $subtotal = $row['preco'] * $row['quantidade'];
                         $total += $subtotal;
                         echo "<tr>";
-                        echo "<td>" . $row['destino'] . "</td>";
-                        echo "<td>" . $row['data_hora'] . "</td>";
-                        echo "<td>" . $row['preco'] . "</td>";
-                        echo "<td>" . $row['quantidade'] . "</td>";
-                        echo "<td>" . $subtotal . "</td>";
+                        echo "<td>" . htmlspecialchars($row['destino']) . "</td>";
+                        echo "<td>" . htmlspecialchars($row['data_hora']) . "</td>";
+                        echo "<td>R$ " . number_format($row['preco'], 2, ',', '.') . "</td>";
+                        echo "<td>" . htmlspecialchars($row['quantidade']) . "</td>";
+                        echo "<td>R$ " . number_format($subtotal, 2, ',', '.') . "</td>";
+                        echo "<td><a href='remover_carrinho.php?id_viagem=" . $row['id_viagem'] . "' class='btn btn-danger'>Remover</a></td>";
                         echo "</tr>";
                     }
                 } else {
-                    echo "<tr><td colspan='5' class='text-center'>Seu carrinho está vazio.</td></tr>";
+                    echo "<tr><td colspan='6' class='text-center'>Seu carrinho está vazio.</td></tr>";
                 }
                 ?>
                 <tr>
                     <td colspan="4" class="text-right"><strong>Total:</strong></td>
-                    <td><strong><?php echo $total; ?></strong></td>
+                    <td><strong>R$ <?php echo number_format($total, 2, ',', '.'); ?></strong></td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>
@@ -74,4 +83,7 @@ $result = $conn->query($sql);
     </div>
 </body>
 </html>
-<?php $conn->close(); ?>
+<?php 
+$stmt->close(); // Fecha a declaração
+$conn->close(); // Fecha a conexão
+?>
